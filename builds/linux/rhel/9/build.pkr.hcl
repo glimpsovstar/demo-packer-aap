@@ -29,10 +29,6 @@ packer {
       version = "~> 1"
       source  = "github.com/hashicorp/ansible"
     }
-    hcp = {
-      version = ">= 0.1.0"
-      source  = "github.com/hashicorp/hcp"
-    }
   }
 }
 
