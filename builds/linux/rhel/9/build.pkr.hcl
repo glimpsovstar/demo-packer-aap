@@ -63,7 +63,7 @@ source "amazon-ebs" "rhel9" {
 
 build {
   hcp_packer_registry {
-    bucket_name = "rhel9-aap"
+    bucket_name = "RHEL9-AAP"
     description = "RHEL9 AAP controller image built on RHEL9-SOE base"
     bucket_labels = {
       "owner" = "glimpsovstar"
