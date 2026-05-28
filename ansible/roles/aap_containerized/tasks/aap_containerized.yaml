@@ -86,11 +86,9 @@
     ansible.builtin.command:
       cmd: "podman login registry.redhat.io -u \"{{ lookup('env', 'RHN_REGISTRY_SVC') }}\" --password \"{{ lookup('env', 'RHN_REGISTRY_TOKEN') }}\""
   - name: Validate pull image
+    # EE images in 2.7 dropped the :latest tag; pull a core image instead to validate registry auth.
     ansible.builtin.shell: |
-      podman pull registry.redhat.io/ansible-automation-platform-25/ee-supported-rhel9:latest
-      podman pull registry.redhat.io/ansible-automation-platform-25/ee-supported-rhel8:latest
-      podman pull registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel9:latest
-      podman pull registry.redhat.io/ansible-automation-platform-25/ee-minimal-rhel8:latest
+      podman pull registry.redhat.io/ansible-automation-platform-27/controller-rhel9:latest
     register: podman_pull_result
     changed_when: podman_pull_result.rc == 0
   become_user: aap
