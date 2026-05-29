@@ -21,6 +21,12 @@
 [all:vars]
 ansible_connection=local
 
+# Feature flags — enable AAP 2.7 OIDC workload identity for HashiCorp Vault.
+# Surfaces new "HashiCorp Vault Secret Lookup (OIDC)" + "HashiCorp Vault Signed
+# SSH (OIDC)" credential types so AAP can auth to Vault via short-lived JWTs
+# instead of static AppRole IDs. Note Python dict literal (True, not true).
+feature_flags={"FEATURE_OIDC_WORKLOAD_IDENTITY_ENABLED": True}
+
 # Common
 postgresql_admin_username=postgres
 postgresql_admin_password={{ new_install_password }}
