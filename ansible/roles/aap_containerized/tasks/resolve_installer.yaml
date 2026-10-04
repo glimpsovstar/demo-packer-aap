@@ -1,0 +1,79 @@
+---
+# Resolve and download the AAP containerized *online* installer from the Red Hat
+# Customer Portal API, so rebuilds always pick up the latest patch release
+# (or a pinned one) without committing installer tarballs to git.
+#
+# Inputs:  aap_installer_minor    e.g. "2.7"
+#          aap_installer_version  "latest" or a release such as "2.7-9"
+#          env RHSM_OFFLINE_TOKEN (https://access.redhat.com/management/api)
+# Outputs: aaponlinecontainerizedversion, aapfolderpath (facts), and the
+#          tarball at <aap_installer_dest_dir>/<aaponlinecontainerizedversion>,
+#          sha256-verified.
+
+- name: Get RHSM access token for the installer download
+  ansible.builtin.uri:
+    url: "https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token"
+    method: POST
+    body_format: form-urlencoded
+    body:
+      grant_type: refresh_token
+      client_id: rhsm-api
+      refresh_token: "{{ lookup('env', 'RHSM_OFFLINE_TOKEN') }}"
+    status_code: 200
+  register: aap_installer_token
+  no_log: true
+
+- name: List AAP {{ aap_installer_minor }} files on the Customer Portal
+  ansible.builtin.uri:
+    url: "https://api.access.redhat.com/management/v1/images/cset/ansible-automation-platform-{{ aap_installer_minor }}-for-rhel-9-x86_64-files?limit=500"
+    headers:
+      Authorization: "Bearer {{ aap_installer_token.json.access_token }}"
+    return_content: true
+  register: aap_installer_files
+
+- name: Pick the online (non-bundle) containerized installer
+  vars:
+    online_pattern: "^ansible-automation-platform-containerized-setup-{{ aap_installer_minor | regex_escape }}-[0-9.]+\\.tar\\.gz$"
+    candidates: >-
+      {{ aap_installer_files.json.body
+         | selectattr('filename', 'match', online_pattern)
+         | sort(attribute='datePublished') | list }}
+    pinned: >-
+      {{ candidates
+         | selectattr('filename', 'equalto',
+                      'ansible-automation-platform-containerized-setup-' ~ aap_installer_version ~ '.tar.gz')
+         | list }}
+    chosen: "{{ (candidates | last) if aap_installer_version == 'latest' else (pinned | first | default({})) }}"
+  ansible.builtin.set_fact:
+    aap_installer: "{{ chosen }}"
+    aaponlinecontainerizedversion: "{{ chosen.filename | default('') }}"
+    aapfolderpath: "{{ chosen.filename | default('') | regex_replace('\\.tar\\.gz$', '') }}"
+
+- name: Fail clearly if no installer matched
+  ansible.builtin.assert:
+    that: aaponlinecontainerizedversion | length > 0
+    fail_msg: >-
+      No containerized online installer found for minor {{ aap_installer_minor }}
+      and version {{ aap_installer_version }}.
+
+- name: Show the installer selected
+  ansible.builtin.debug:
+    msg: "Using {{ aaponlinecontainerizedversion }} (published {{ aap_installer.datePublished }}, sha256 {{ aap_installer.checksum }})"
+
+# The download endpoint redirects to a pre-signed CDN URL. Resolve the redirect
+# first so the bearer token is never forwarded to the CDN host.
+- name: Resolve the signed download URL
+  ansible.builtin.uri:
+    url: "https://api.access.redhat.com/management/v1/images/{{ aap_installer.checksum }}/download"
+    headers:
+      Authorization: "Bearer {{ aap_installer_token.json.access_token }}"
+    follow_redirects: none
+    status_code: [302, 307]
+  register: aap_installer_redirect
+
+- name: Download and verify the installer
+  ansible.builtin.get_url:
+    url: "{{ aap_installer_redirect.location }}"
+    dest: "{{ aap_installer_dest_dir }}/{{ aaponlinecontainerizedversion }}"
+    checksum: "sha256:{{ aap_installer.checksum }}"
+    mode: "0644"
