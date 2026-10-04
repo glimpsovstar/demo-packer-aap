@@ -24,3 +24,5 @@ ansible.cfg
 
 # Mac
 .DS_Store
+# installer tarballs are fetched from Red Hat at build time
+*.tar.gz

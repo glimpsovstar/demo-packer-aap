@@ -1,0 +1,9 @@
+---
+# AAP containerized installer, fetched from the Red Hat Customer Portal API at
+# build time (see tasks/resolve_installer.yaml).
+aap_containerized_installer_minor: "2.7"
+# "latest" picks the newest online installer for aap_containerized_installer_minor.
+# Pin a release (e.g. "2.7-9") to make builds reproducible.
+aap_containerized_installer_version: latest
+# Download location; the rest of the role expects /tmp.
+aap_containerized_installer_dest_dir: /tmp

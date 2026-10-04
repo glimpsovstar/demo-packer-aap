@@ -136,7 +136,7 @@
       refresh_token: "{{ lookup('env', 'RHSM_OFFLINE_TOKEN') }}"
     status_code: 200
   register: rhsm_token
-  no_log: false
+  no_log: true
 
 - name: Sleep to prevent rate limiting
   ansible.builtin.pause:
@@ -202,11 +202,8 @@
   ansible.builtin.debug:
     var: manifest_file
 
-- name: Download Ansible Automation Platform setup file
-  ansible.builtin.get_url:
-    url: "https://github.com/Hashi-RedHat-APJ-Collab/demo-packer-aap/raw/refs/heads/main/{{ aaponlinecontainerizedversion }}"
-    dest: /tmp/{{ aaponlinecontainerizedversion }}
-  register: download_result
+- name: Resolve and download the AAP containerized installer from Red Hat
+  ansible.builtin.include_tasks: resolve_installer.yaml
 
 - name: Get information about downloaded file
   ansible.builtin.stat: 
