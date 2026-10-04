@@ -25,10 +25,12 @@
 
 - name: List AAP {{ aap_containerized_installer_minor }} files on the Customer Portal
   ansible.builtin.uri:
-    url: "https://api.access.redhat.com/management/v1/images/cset/ansible-automation-platform-{{ aap_containerized_installer_minor }}-for-rhel-9-x86_64-files?limit=500"
+    url: "https://api.access.redhat.com/management/v1/images/cset/{{ content_set }}?limit=500"
     headers:
       Authorization: "Bearer {{ aap_containerized_installer_token.json.access_token }}"
     return_content: true
+  vars:
+    content_set: "ansible-automation-platform-{{ aap_containerized_installer_minor }}-for-rhel-9-x86_64-files"
   register: aap_containerized_installer_files
 
 # aaponlinecontainerizedversion / aapfolderpath keep their existing names: the
