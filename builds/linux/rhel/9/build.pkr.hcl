@@ -55,11 +55,11 @@ source "amazon-ebs" "rhel9" {
     volume_type           = "gp3"
     delete_on_termination = true
   }
-  
-  ssh_timeout         = "2h"
+
+  ssh_timeout = "2h"
 }
 
- 
+
 
 build {
   hcp_packer_registry {
@@ -73,7 +73,9 @@ build {
     build_labels = {
       "build-time"   = timestamp()
       "build-source" = basename(path.cwd)
-      "base-image"   = data.hcp-packer-artifact.rhel9-soe.external_identifier
+      # No base-image label: build_labels cannot read data sources (the build fails with
+      # "Unsuitable value: value must be known"). HCP Packer records the RHEL9-SOE parent
+      # version as this version's ancestry.
     }
   }
   sources = [
@@ -102,7 +104,7 @@ build {
       "CONTROLLER_USERNAME=${var.controller_username}",
       "CONTROLLER_PASSWORD=${var.controller_password}"
     ]
-    
+
     timeout = "2h"
   }
 
