@@ -1,0 +1,47 @@
+name: Keep Red Hat offline tokens alive
+
+# Red Hat offline tokens expire after 30 days without use. The image build runs
+# rarely, so exchange each token for an access token once a week. The exchange
+# counts as use. A failed run means a token is dead: regenerate it and update
+# the secret (links below) before the next image build.
+#   ANSIBLE_OFFLINE_TOKEN, HUB_OFFLINE_TOKEN: https://console.redhat.com/ansible/automation-hub/token
+#   RHSM_OFFLINE_TOKEN:                       https://access.redhat.com/management/api
+
+on:
+  schedule:
+    - cron: "17 21 * * 0" # Sundays 21:17 UTC (Monday morning AEDT)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Exchange each offline token
+        env:
+          ANSIBLE_OFFLINE_TOKEN: ${{ secrets.ANSIBLE_OFFLINE_TOKEN }}
+          HUB_OFFLINE_TOKEN: ${{ secrets.HUB_OFFLINE_TOKEN }}
+          RHSM_OFFLINE_TOKEN: ${{ secrets.RHSM_OFFLINE_TOKEN }}
+        run: |
+          set -u
+          url=https://sso.redhat.com/auth/realms/redhat-external/protocol/openid-connect/token
+          failed=0
+          # name:client_id. Automation Hub tokens use cloud-services, RHSM API tokens use rhsm-api.
+          for pair in ANSIBLE_OFFLINE_TOKEN:cloud-services HUB_OFFLINE_TOKEN:cloud-services RHSM_OFFLINE_TOKEN:rhsm-api; do
+            name=${pair%%:*}; client=${pair#*:}; token=${!name}
+            if [ -z "${token}" ]; then
+              echo "::error::${name} is not set"; failed=1; continue
+            fi
+            # Token goes in on stdin, not the command line; the response is discarded.
+            code=$(printf '%s' "${token}" | curl -s -o /dev/null -w '%{http_code}' "${url}" \
+              -d grant_type=refresh_token -d client_id="${client}" --data-urlencode refresh_token@-)
+            if [ "${code}" = "200" ]; then
+              echo "${name}: OK"
+            else
+              echo "::error::${name}: Red Hat SSO returned HTTP ${code}. Regenerate it and update the secret."
+              failed=1
+            fi
+          done
+          exit "${failed}"
